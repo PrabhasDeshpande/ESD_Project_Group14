@@ -1,0 +1,1 @@
+Create an embedded audio playback system with an I2C interface that uses a GP8403 DAC module at the output. Use an 8-bit or 16-bit.wav file that is stored in a fixed location on your computer as input.
