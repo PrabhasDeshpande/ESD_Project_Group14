@@ -1,3 +1,1 @@
-Create an embedded audio playback system with an I2C interface that uses a GP8403 DAC module at the output.Utilizing UART, use an 8-bit or 16-bit.wav file that is saved in a specific location on your computer as input.
-
-
+Design and implement an embedded audio playback system capable of playing 8-bit and 12-bit .wav audio files stored in memory. The system should feature a GP8403 DAC module as the audio output interface and use I2C for this communication. Additionally, it should have a UART-based control console for user interaction.
