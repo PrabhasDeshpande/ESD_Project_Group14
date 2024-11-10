@@ -1,4 +1,4 @@
-**Problem statement:** Design and implement an embedded audio playback system capable of playing 8-bit and 12-bit .wav audio files stored in memory. The system should feature a GP8403 DAC module as the audio output interface and use I2C for this communication. Additionally, it should have a UART-based control console for user interaction.
+**Problem statement:** Design and implement an embedded audio playback system capable of playing 8-bit .wav audio files stored in memory. The system should feature a GP8403 DAC module as the audio output interface and use I2C for this communication. Additionally, it should have a UART-based control console for user interaction.
 
 **Discription on approach taken:** 
 
