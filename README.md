@@ -6,7 +6,7 @@
 * Since the audio range is in 20KHz(max) the sampling frequency should be >40KHz; Usual sampling rates are 44.1KHz, hence using a timer for ~23usec suffices this operation.
 * An interrupt is generated once the timer counts down to zero, the ISR is contained to send data to the DAC using I2C protocol.
 * This repeates till the audio file stored is exhausted.
-* The output of DAC is 5V, to interface it with 3.3mm audio jack it should be level shifted down to 1-2V. This is done using a buffer of gain ~0.3.
+* The output of DAC is 5V, to interface it with 3.5mm audio jack it should be level shifted down to 1-2V. This is done using a buffer of gain ~0.3.
   
 
 **Below is the Hardware architecture**
