@@ -112,7 +112,7 @@ void systick(float time)
 void Systick_Handler(void)
 {
 
-    DFR0971_Write(audio[i] << 4 ,0x01);    // make it 16bit and also for unsigned 0x80 acts as zero value
+    DFR0971_Write(audio[i] - 0x80 << 4 ,0x01);    // make it 16bit and also for unsigned 0x80 acts as zero value
     i++;
     if(i > (sizeof(audio) / sizeof(audio[0]))-1){
         i = 0;
