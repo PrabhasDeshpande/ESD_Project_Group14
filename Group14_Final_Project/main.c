@@ -2,41 +2,43 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <tm4c123gh6pm.h>
+#include <wav_ip.h>
 #define CLOCK  16000000
 #define DAC_I2C_ADDRESS 0x58
-#define L 6
+
 
 
 void GPIO_PORTF_INIT(void);
-
 void Systick_Handler(void);     // send data on interrupt to DAC: 23us
 void systick(float time);
-
-uint8_t audio[L] = {0x10, 0x20, 0x7F, 0xAB, 0xC9, 0xFF}; // add data here.....
+void I2C0_Init(void);
+void set_slave_addr(void);
+void DFR0971_Config();
+void DFR0971_Write(uint8_t data, uint8_t command);
 
 int i = 0;     // index counter
-
-
-void I2C1_Init(void);
-void set_slave_addr(void);
-void DFR0971_Write(uint8_t data , uint8_t command);
 
 
 void main(void)
 {
 
-    I2C1_Init();
+    SYSCTL_RCGCGPIO_R |= 0x20;  //enable clock to portf
+    SYSCTL_RCGCI2C_R |= 0x01;                             // Enable clock for I2C0 module
+    SYSCTL_RCGCGPIO_R |= 0x02;
+    GPIO_PORTF_INIT();
+
+    I2C0_Init();
     set_slave_addr();
 
-    DFR0971_Write(0x02,0x03); // DAC setting and I2C: start-run
+
+    DFR0971_Config();   // config for 5V output
+
+    systick(23);   // output at 22KHz
+
 
     while(1)
     {
-         systick(46);   // output at 22KHz
-         i++;
-
-         if(i == L-1)
-             i = 0;
+        // do nothing
 
     }
 
@@ -44,40 +46,49 @@ void main(void)
 
 
 // Function to initialize I2C
-void I2C1_Init(void) {
-    SYSCTL_RCGCI2C_R = (1 << 1);            // Enable clock to I2C1
-    SYSCTL_RCGCGPIO_R = (1 << 1);           // Enable clock to Port B
-    while ((SYSCTL_PRGPIO_R & 0x02) == 0); // Wait until GPIOB is ready
+void I2C0_Init(void) {
 
-    GPIO_PORTB_AFSEL_R = (1 << 6) | (1 << 7);          // Enable alternate function on PB2, PB3
+    SYSCTL_RCGCI2C_R |= 0x01;                             // Enable clock for I2C0 module
+    SYSCTL_RCGCGPIO_R |= 0x02;                            // Enable clock for Port B
+
+    while ((SYSCTL_PRGPIO_R & 0x02) == 0);                // Wait until Port B is ready
+
+    GPIO_PORTB_AFSEL_R |= 0x0C;                           // Enable alternate function for PB2, PB3
+    GPIO_PORTB_ODR_R |= 0x08;                             // Set PB3 (SDA) as open-drain
+    GPIO_PORTB_DEN_R |= 0x0C;                             // Enable digital function on PB2, PB3
+    GPIO_PORTB_PCTL_R = (GPIO_PORTB_PCTL_R & ~0xFF00) | 0x3300; // Assign I2C function to PB2, PB3
+
+    I2C0_MCR_R = 0x10;                                    // Configure I2C0 as master
+    I2C0_MTPR_R = 0x07;
 
 
-
-    GPIO_PORTB_DEN_R = (1 << 6) | (1 << 7);       // Enable digital I/O on PB2, PB3
-    GPIO_PORTB_ODR_R  = (1 << 7)   ;        // Enable open-drain on PB3 (SDA)       // Enable open-drain on PB3 (SDA)
-    GPIO_PORTB_PCTL_R = (3 << 28) | (3 << 24);      // Set I2C function on PB2, PB3
-
-    I2C1_MCR_R = (1 << 4);                   // Enable I2C1 Master function
-    I2C1_MTPR_R = (7 << 0);                    // Set SCL clock speed to 100 kHz with 16 MHz system clock
 }
 
 void set_slave_addr(void)
 {
-    I2C1_MSA_R = DAC_I2C_ADDRESS << 1 ;
-    I2C1_MSA_R &= !(1 << 0);
+    I2C0_MSA_R = DAC_I2C_ADDRESS << 1 | 0;
+    I2C0_MSA_R &= !(1 << 0);
 
 }
 
-// Function to send data to a specific channel on DFR0971
-void DFR0971_Write(uint8_t data, uint8_t commands) {
+void DFR0971_Config()
+{
+    DFR0971_Write(0x01,0x03);
+    DFR0971_Write(0x00,0x05);
+    DFR0971_Write(0x02,0x03);
+}
 
-    I2C1_MDR_R = data;
-    I2C1_MCS_R = commands;
-    while (I2C1_MCS_R & 0x01);           // Wait for I2C transmission
+void DFR0971_Write(uint8_t data, uint8_t command) {
+    I2C0_MSA_R = (DAC_I2C_ADDRESS << 1); // Set the I2C address with write operation
+    I2C0_MDR_R = data;
+    I2C0_MCS_R = command;                   // Start and Run condition
+    while (I2C0_MCS_R & 0x01);           // Wait for transmission to complete
 
-    if (I2C1_MCS_R & 0x02) {             // Check for errors
-        I2C1_MCS_R = 0x04;               // Send stop condition if error
+    if (I2C0_MCS_R & 0x02) {             // Check for errors
+        I2C0_MCS_R = 0x04;               // Send stop condition if error occurs
+        return;
     }
+
 }
 
 
@@ -87,7 +98,7 @@ void systick(float time)
 {
 
     float val;
-    val = (time*(CLOCK))/1000000;
+    val = (time*(CLOCK))/1000000;   // time in us
     NVIC_ST_RELOAD_R = val;        // reload value
     NVIC_ST_CURRENT_R  = 0x0;         // current value
     NVIC_ST_CTRL_R = 0x07;          // enable and choice of clk and enable intruppt.
@@ -101,19 +112,13 @@ void systick(float time)
 void Systick_Handler(void)
 {
 
-    if(i < L-1)
-    {
-        DFR0971_Write(audio[i] - 0x80,0x01);    // unsigned 8 bit wav file has 0x80 as zero // run-run-run
-
+    DFR0971_Write(audio[i] << 4 ,0x01);    // make it 16bit and also for unsigned 0x80 acts as zero value
+    i++;
+    if(i > (sizeof(audio) / sizeof(audio[0]))-1){
+        i = 0;
+        DFR0971_Write(0x00,0x05);       // stop Txing at last index
+        DFR0971_Config();               // reconfigure for next cycle: as it needs it every cycle
     }
-
-    else if(i == L-1)
-    {
-
-        DFR0971_Write(audio[i] - 0x80,0x05);    // run-stop
-
-    }
-
 }
 
 
